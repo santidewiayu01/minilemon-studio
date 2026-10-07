@@ -1,0 +1,806 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* ------------------------------------------------------------------
+     Studio type system. Syne is the display face — a wide, geometric,
+     slightly technical letterform that reads as a modern production
+     studio rather than a children's brand. Plus Jakarta Sans is the
+     body/UI face: clean and legible in both light and dark contexts.
+     This replaces Fredoka/Nunito site-wide (foundation-level change);
+     the two old families stay imported/available as `font-legacy-*`
+     only for any not-yet-redesigned surface that still leans on the
+     original playful voice.
+     ------------------------------------------------------------------ */
+  --font-display: "Syne", sans-serif;
+  --font-body: "Plus Jakarta Sans", sans-serif;
+  --font-legacy-display: "Fredoka", sans-serif;
+  --font-legacy-body: "Nunito", sans-serif;
+
+  /* ------------------------------------------------------------------
+     Legacy brand palette — untouched. Still powers every homepage
+     section, and both full pages, that haven't been redesigned yet.
+     ------------------------------------------------------------------ */
+  --color-cream: #fffdf5;
+  --color-lemon: #ffd93d;
+  --color-lemon-light: #fff3c4;
+  --color-lemon-dark: #f3b900;
+  --color-leaf: #4cb56f;
+  --color-leaf-light: #d9f5e3;
+  --color-leaf-dark: #2f9354;
+  --color-sky: #7fd6f5;
+  --color-sky-light: #e2f8ff;
+  --color-sky-dark: #3fb7e0;
+  --color-ink: #2c3a34;
+  --color-berry: #ff7a7a;
+
+  --color-plum: #f0c987;
+  --color-xanthous: #3b153a;
+  --color-pale-oak: #e8dcc8;
+
+  --color-buttermilk: #fff2ba;
+  --color-midnight: #0f3c65;
+
+  --border-width-3: 3px;
+
+  /* ------------------------------------------------------------------
+     Studio palette (NEW) — cinematic/premium system for the redesigned
+     surfaces, starting with the Hero. Two background depths so large
+     dark sections can still separate a "stage" (void-2) from the page
+     bed (void) without ever touching pure black. Two surface depths
+     for cards/panels that sit on top of the bed. One warm accent
+     (gold — deliberately close to the legacy lemon hue, so the studio
+     still reads as the same brand even after the palette shifts) and
+     one cool accent (cyan) used sparingly for a second light source.
+     ------------------------------------------------------------------ */
+  --color-void: #071827;
+  --color-void-2: #0b2239;
+  --color-surface: #102a43;
+  --color-surface-2: #16324f;
+  --color-frost: #f8fafc;
+  --color-gold: #ffd84d;
+  --color-cyan: #6ee7ff;
+}
+
+/* ------------------------------------------------------------------
+   Living-world background color. Owned by <ScrollWorld>'s fixed
+   layer, morphed continuously by <WorldSeam> as chapter boundaries
+   cross the viewport (see src/scroll/). Lives outside the @theme
+   block on purpose: this is a runtime-animated value GSAP tweens
+   directly, not a static palette token.
+   ------------------------------------------------------------------ */
+:root {
+  --world-color: var(--color-void-2);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background-color: var(--color-cream);
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Scalloped citrus-peel divider — styling for the single reusable
+   <SectionDivider /> component (src/components/SectionDivider.jsx).
+   Both the "cut" and the "bump" are painted with explicit, opaque colors
+   (--divider-top for the section above the seam, --divider-bottom for
+   the section below it) instead of relying on "transparent" to reveal
+   whatever happens to be rendered behind the element. That old approach
+   only looked right by coincidence: any decorative shape, gradient, or
+   stacking order change behind the divider would bleed through and make
+   the wave look like it was "floating" and misaligned with the real
+   color border. Painting both colors explicitly makes the divider
+   self-contained and pixel-accurate regardless of what else is on the
+   page. There is deliberately no fallback color: if either variable is
+   missing, the background-image declaration is invalid and nothing
+   paints, so a misused divider is invisible rather than wrong-colored.
+   The circle is centered mid-tile (20px of a 40px tile) so the scallops
+   repeat evenly, and the box overlaps 1px past the true seam so there is
+   no hairline gap from subpixel rounding.
+
+   NOTE: the wrapping element already gets `position: absolute` from the
+   `absolute` Tailwind class applied in SectionDivider.jsx — that alone is
+   enough to make it a positioning context for the ::after bump graphic
+   below. Do NOT redeclare `position: relative` here: this stylesheet's
+   custom rules sit outside of Tailwind's cascade layers, so an unlayered
+   `position: relative` here would unconditionally win over the layered
+   `.absolute` utility regardless of source order, silently turning the
+   divider back into an in-flow element. That's what caused the wave to
+   float somewhere in the middle of a section's bottom padding instead of
+   sitting right on the real color seam — the div was never removed from
+   normal flow, so `bottom-0` only nudged it instead of pinning it. */
+.scallop-divider::after {
+  content: "";
+  position: absolute;
+  inset: -1px 0 0 0;
+  background-image: radial-gradient(circle at 20px 0, var(--divider-top) 12px, var(--divider-bottom) 13px);
+  background-size: 40px calc(100% + 1px);
+  background-repeat: repeat-x;
+}
+
+/* Sticker-style card */
+.sticker-card {
+  border: 3px solid var(--color-ink);
+  box-shadow: 6px 6px 0px 0px var(--color-ink);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.sticker-card:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 9px 9px 0px 0px var(--color-ink);
+}
+
+/* Floating blob animation */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-18px) rotate(4deg); }
+}
+@keyframes float-slower {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(14px) rotate(-3deg); }
+}
+.animate-float {
+  animation: float-slow 5s ease-in-out infinite;
+}
+.animate-float-slower {
+  animation: float-slower 7s ease-in-out infinite;
+}
+
+/* Wiggle on hover for playful buttons/icons */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+.hover-wiggle:hover {
+  animation: wiggle 0.4s ease-in-out infinite;
+}
+
+/* Collectible character card: keeps the brand's flat sticker outline
+   but layers a soft, colored "premium" glow underneath it that grows
+   on hover, plus a smooth lift instead of the sharper sticker snap. */
+.character-card {
+  border: 3px solid var(--color-ink);
+  box-shadow: 5px 5px 0px 0px var(--color-ink), 0 14px 28px -16px var(--card-glow, transparent);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+}
+.character-card:hover {
+  transform: translate(-4px, -7px);
+  box-shadow: 8px 8px 0px 0px var(--color-ink), 0 24px 38px -14px var(--card-glow, transparent);
+}
+
+/* Gentle, continuous idle float for character avatars (small amplitude
+   so it reads as "alive" without being distracting), independent from
+   any hover transform applied to a parent/sibling element. */
+@keyframes float-avatar {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float-avatar {
+  animation: float-avatar 3.4s ease-in-out infinite;
+}
+
+/* Slow drifting motion for background bubbles/sparkles. */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(8px, -16px) scale(1.06); }
+}
+.animate-drift {
+  animation: drift 9s ease-in-out infinite;
+}
+
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.85); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+.animate-sparkle {
+  animation: sparkle-twinkle 2.6s ease-in-out infinite;
+}
+
+/* Very low-opacity repeating lemon-dot texture, used to keep large
+   background areas from feeling empty without competing with content. */
+.lemon-dot-pattern {
+  background-image: radial-gradient(var(--color-lemon-dark) 2.5px, transparent 2.6px);
+  background-size: 34px 34px;
+}
+
+/* Premium product card — used on the "Produk Kita" page. Keeps the
+   brand's thick ink outline but swaps the flat sticker-offset shadow for
+   a soft, deep, color-tinted shadow that grows on hover, plus a smooth
+   lift + scale instead of the sharper sticker snap used elsewhere. */
+.product-card-premium {
+  border-width: 4px;
+  border-color: var(--color-ink);
+  box-shadow:
+    0 18px 38px -18px rgba(44, 58, 52, 0.4),
+    0 6px 16px -8px rgba(44, 58, 52, 0.25),
+    0 0 0 3px var(--card-glow, transparent);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease;
+}
+.product-card-premium:hover {
+  transform: translateY(-8px) scale(1.03);
+  box-shadow:
+    0 34px 60px -18px rgba(44, 58, 52, 0.5),
+    0 12px 24px -8px rgba(44, 58, 52, 0.3),
+    0 0 0 5px var(--card-glow, transparent);
+}
+
+/* Same treatment as .product-card-premium, reused for the "Life at Planet
+   Studio" division showcase so both storytelling sections share one
+   premium-card language instead of inventing a second shadow system. */
+.division-card-premium {
+  border-width: 4px;
+  border-color: var(--color-ink);
+  box-shadow:
+    0 18px 38px -18px rgba(44, 58, 52, 0.4),
+    0 6px 16px -8px rgba(44, 58, 52, 0.25);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease;
+}
+.division-card-premium:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 28px 50px -18px rgba(44, 58, 52, 0.48),
+    0 10px 20px -8px rgba(44, 58, 52, 0.28);
+}
+
+/* Poster frame inside a product card: gentle floating lift + un-tilt on
+   hover. The idle tilt itself is set per-card via the --tilt custom
+   property so alternating cards can lean opposite directions. */
+.poster-frame {
+  transform: rotate(var(--tilt, -2deg));
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s ease;
+}
+.poster-frame:hover {
+  transform: translateY(-10px) rotate(0deg) scale(1.03);
+}
+
+/* Studio Moments scrapbook pin — each tile rests at its own slight tilt
+   (--tilt, set per-tile in StudioMoments.jsx) like a photo actually pinned
+   up by hand, and straightens out on hover/focus as if someone reached up
+   to look closer. Keyboard focus gets the same reveal as hover, since the
+   grayscale-to-color + caption treatment is otherwise mouse-only. */
+.moment-pin {
+  transform: rotate(var(--tilt, 0deg));
+}
+.moment-pin:hover,
+.moment-pin:focus-within {
+  transform: rotate(0deg) translateY(-4px);
+}
+.moment-pin:focus-visible {
+  outline: 3px solid var(--color-lemon);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-lemon-light);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-lemon-dark);
+  border-radius: 10px;
+}
+
+/* ============================================================
+   EDITORIAL LAYER — the redesigned system.
+   Principle: less border, more layout. Less card, more
+   composition. Less decoration, more hierarchy. Structure and
+   whitespace carry the design now; a thick ink outline is no
+   longer the default way two things get told apart. The old
+   sticker/ink-border classes above are left in place only for
+   the two unrouted legacy pages that still reference them
+   (Produk Kita / Character Detail); nothing in the redesigned
+   flow uses them any more.
+   ============================================================ */
+
+/* Soft elevation card — replaces the thick ink-outline + hard
+   offset shadow everywhere a "card" is still the right shape for
+   content, but the card itself should recede and let the content
+   lead. Border is a hairline, shadow is soft/diffuse and grows
+   gently on hover instead of "popping" with a snap. */
+.card-soft {
+  border: 1px solid rgba(44, 58, 52, 0.08);
+  box-shadow: 0 1px 2px rgba(44, 58, 52, 0.04), 0 16px 40px -24px rgba(44, 58, 52, 0.22);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease, border-color 0.45s ease;
+}
+.card-soft:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 1px 2px rgba(44, 58, 52, 0.05), 0 28px 56px -24px rgba(44, 58, 52, 0.3);
+  border-color: rgba(44, 58, 52, 0.14);
+}
+
+/* Editorial photo frame — a big photograph with a hairline border
+   and soft shadow instead of the old 4px ink outline + hard offset
+   "poster" treatment. Still lifts gently on hover so photography
+   stays alive, just without the sticker snap. */
+.photo-frame {
+  border: 1px solid rgba(44, 58, 52, 0.08);
+  box-shadow: 0 24px 60px -28px rgba(44, 58, 52, 0.35);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.6s ease;
+}
+.photo-frame:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 36px 72px -24px rgba(44, 58, 52, 0.42);
+}
+
+/* Solid pill button — replaces border-3 + hard offset shadow CTAs.
+   A confident flat fill, soft shadow, gentle lift on hover/press. */
+.btn-solid {
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(44, 58, 52, 0.06), 0 12px 24px -10px rgba(44, 58, 52, 0.35);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+.btn-solid:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 1px 2px rgba(44, 58, 52, 0.08), 0 18px 32px -10px rgba(44, 58, 52, 0.4);
+}
+.btn-solid:active {
+  transform: translateY(0);
+}
+
+/* Ghost/outline pill button — hairline border, fills softly on hover. */
+.btn-ghost {
+  border-radius: 999px;
+  border: 1.5px solid rgba(44, 58, 52, 0.16);
+  transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+}
+.btn-ghost:hover {
+  border-color: rgba(44, 58, 52, 0.32);
+  transform: translateY(-2px);
+}
+
+/* Small eyebrow / kicker label used above headlines site-wide, sized
+   down and letter-spaced so it reads as a label, not another headline
+   competing for attention. */
+.kicker {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Big stat number used in the hero + storytelling stat strips. */
+.stat-number {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Faint, oversized background word/number used as a quiet layout
+   anchor behind a section (huge division numbers, section labels) —
+   the "focal point" comes from typographic scale + negative space
+   rather than a decorative sticker shape. */
+.ghost-type {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-ink);
+  opacity: 0.05;
+  line-height: 0.85;
+  letter-spacing: -0.03em;
+  user-select: none;
+}
+
+/* ============================================================
+   CINEMATIC STUDIO LAYER — new premium/dark system, starting
+   with the Hero. "Planet Studio" gives an obvious, ownable visual
+   motif that isn't a generic AI-default gradient blob: concentric
+   orbit rings as the signature device, reused any time a section
+   in the new system needs one focal decorative element instead of
+   scattered shapes.
+   ============================================================ */
+
+/* Slow, continuous Ken Burns creep for showreel/video backgrounds —
+   runs independently of scroll so the footage never sits perfectly
+   still, even before the visitor scrolls at all. */
+@keyframes cinematic-zoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.09); }
+}
+.animate-cinematic-zoom {
+  animation: cinematic-zoom 24s ease-in-out infinite alternate;
+}
+
+/* Fine film-grain texture laid over the hero video so the footage
+   reads as graded cinematic footage rather than a raw screen
+   recording. Pure CSS (no image asset), extremely low opacity. */
+.grain-overlay {
+  background-image:
+    radial-gradient(rgba(248, 250, 252, 0.9) 0.6px, transparent 0.6px),
+    radial-gradient(rgba(248, 250, 252, 0.7) 0.6px, transparent 0.6px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 1.5px 2.5px;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+}
+
+/* Slow concentric orbit rings — the signature shape of the redesign.
+   Each ring rotates at its own speed/direction so the whole device
+   drifts rather than spins uniformly, reading as an ambient orbit
+   instead of a loading spinner. */
+@keyframes orbit-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes orbit-spin-reverse {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+.orbit-ring {
+  border-radius: 9999px;
+  border: 1px solid rgba(248, 250, 252, 0.14);
+}
+.orbit-ring--gold {
+  border-color: rgba(255, 216, 77, 0.28);
+}
+.orbit-ring--cyan {
+  border-color: rgba(110, 231, 255, 0.22);
+}
+.animate-orbit {
+  animation: orbit-spin 46s linear infinite;
+}
+.animate-orbit-reverse {
+  animation: orbit-spin-reverse 64s linear infinite;
+}
+
+/* Small pulsing "planet" mark used at ring intersections. */
+@keyframes orbit-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+.animate-orbit-pulse {
+  animation: orbit-pulse 3.2s ease-in-out infinite;
+}
+
+/* Magnetic CTA — solid gold pill with a soft directional glow that
+   intensifies on hover, used for the primary studio-system actions. */
+.btn-studio-solid {
+  border-radius: 999px;
+  background: var(--color-gold);
+  color: var(--color-void);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 16px 40px -14px rgba(255, 216, 77, 0.55);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+}
+.btn-studio-solid:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 22px 50px -12px rgba(255, 216, 77, 0.7);
+}
+.btn-studio-solid:active {
+  transform: translateY(-1px);
+}
+
+/* Ghost CTA for the studio system — glass panel on dark video. */
+.btn-studio-ghost {
+  border-radius: 999px;
+  border: 1.5px solid rgba(248, 250, 252, 0.28);
+  background: rgba(248, 250, 252, 0.06);
+  backdrop-filter: blur(6px);
+  color: var(--color-frost);
+  transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+}
+.btn-studio-ghost:hover {
+  border-color: rgba(248, 250, 252, 0.5);
+  background: rgba(248, 250, 252, 0.12);
+  transform: translateY(-3px);
+}
+
+/* Vertical "scroll" cue at the base of the hero — a slow traveling
+   dot inside a pill track, replacing the generic bouncing-chevron
+   scroll indicator. */
+@keyframes scroll-cue-travel {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(18px); opacity: 0; }
+}
+.scroll-cue-dot {
+  animation: scroll-cue-travel 1.8s ease-in-out infinite;
+}
+
+/* Eyebrow label for the studio system — same job as `.kicker` but
+   tuned for dark backgrounds: wider tracking, dimmer default color,
+   a gold accent bullet instead of relying on color alone. */
+.kicker-studio {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.72);
+}
+
+/* ============================================================
+   PRODUCTION PIPELINE LAYER — added for the "Aktivitas Divisi"
+   redesign. Extends the cinematic studio system above (void/gold/
+   cyan, orbit rings) with the extra decorative language a full
+   "walk through the pipeline" page needs: a technical background
+   grid, drifting particles, a light sweep, and glass panels for
+   premium division cards + the node-network diagram.
+   ============================================================ */
+
+/* Faint technical blueprint grid — reads as "production floor plan"
+   rather than a generic dot pattern. Two line weights so it doesn't
+   look like a spreadsheet: a fine 1px grid plus a wider 4x guide. */
+.tech-grid {
+  background-image:
+    linear-gradient(rgba(248, 250, 252, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(248, 250, 252, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(248, 250, 252, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(248, 250, 252, 0.09) 1px, transparent 1px);
+  background-size: 28px 28px, 28px 28px, 112px 112px, 112px 112px;
+}
+
+/* Drifting particle dot — small ambient specks scattered across dark
+   hero/section backgrounds, each given its own delay/duration inline
+   so the field doesn't pulse in unison. */
+@keyframes particle-drift {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: var(--particle-opacity, 0.5); }
+  90% { opacity: var(--particle-opacity, 0.5); }
+  100% { transform: translate(var(--particle-x, 12px), var(--particle-y, -60px)); opacity: 0; }
+}
+.particle-dot {
+  position: absolute;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: particle-drift var(--particle-duration, 10s) ease-in-out infinite;
+}
+
+/* Diagonal light sweep — a soft bar of light that glides across a dark
+   section on a slow loop, reinforcing the "studio floodlight" feeling
+   without ever fully whiting anything out. */
+@keyframes light-sweep {
+  0% { transform: translateX(-60%) skewX(-12deg); opacity: 0; }
+  15% { opacity: 0.5; }
+  50% { opacity: 0.5; }
+  85% { opacity: 0; }
+  100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+}
+.light-sweep {
+  position: absolute;
+  inset: -20% -10%;
+  width: 22%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(248, 250, 252, 0.06) 45%,
+    rgba(255, 216, 77, 0.08) 50%,
+    rgba(248, 250, 252, 0.06) 55%,
+    transparent
+  );
+  animation: light-sweep 13s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Glass panel — the base surface for premium pipeline cards, the
+   "Inside The Division" slides, and node-network tooltips. Border and
+   glow color are driven by --panel-glow (usually a division accent)
+   so one class serves every division without per-card overrides. */
+.glass-panel {
+  background: rgba(248, 250, 252, 0.05);
+  border: 1px solid rgba(248, 250, 252, 0.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px -32px rgba(0, 0, 0, 0.6);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.5s ease, border-color 0.5s ease;
+}
+.glass-panel:hover {
+  transform: translateY(-6px);
+  border-color: var(--panel-glow, rgba(248, 250, 252, 0.28));
+  box-shadow: 0 32px 70px -28px rgba(0, 0, 0, 0.65),
+    0 0 0 1px var(--panel-glow, transparent),
+    0 0 48px -12px var(--panel-glow, transparent);
+}
+
+/* Pipeline node — the small circular markers in the "One Production,
+   Eight Divisions" diagram. Idle state is quiet; hover/focus lights it
+   up with its own division accent, passed in via --node-glow. */
+.pipeline-node {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease,
+    background-color 0.4s ease, border-color 0.4s ease;
+}
+.pipeline-node:hover,
+.pipeline-node:focus-visible {
+  transform: scale(1.15);
+  border-color: var(--node-glow, var(--color-gold));
+  background-color: var(--node-glow, var(--color-gold));
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--node-glow, var(--color-gold)) 18%, transparent),
+    0 0 32px 4px color-mix(in srgb, var(--node-glow, var(--color-gold)) 55%, transparent);
+}
+
+/* Cursor-tracking spotlight — a soft light that follows the pointer
+   inside a glass card, driven by --mx/--my custom properties set from
+   a mousemove handler in JS. Sits on its own pseudo-element so it can
+   layer over a photo or content without fighting other backgrounds. */
+.spotlight-card {
+  position: relative;
+}
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: radial-gradient(
+    280px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.16),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.spotlight-card:hover::before,
+.spotlight-card:focus-within::before {
+  opacity: 1;
+}
+
+/* Energy-flow shimmer — a repeating diagonal highlight that streams
+   along a pipeline connector, reused for both the horizontal (desktop)
+   and vertical (mobile / timeline spine) orientations. */
+@keyframes energy-flow-x {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes energy-flow-y {
+  0% { background-position: 0 -200%; }
+  100% { background-position: 0 200%; }
+}
+.energy-line-x {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(248, 250, 252, 0.5) 8%,
+    transparent 16%
+  );
+  background-size: 50% 100%;
+  animation: energy-flow-x 3.2s linear infinite;
+}
+.energy-line-y {
+  background-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(248, 250, 252, 0.55) 8%,
+    transparent 16%
+  );
+  background-size: 100% 50%;
+  animation: energy-flow-y 3.2s linear infinite;
+}
+
+/* Hides the scrollbar on horizontally-scrollable strips (e.g. the
+   division selector) while keeping them scrollable by touch/drag. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scanning beam — a thin glowing line that sweeps down a photo panel
+   on a loop, like a workstation running a live scan on whatever is
+   currently in frame. Used on the Division Command Center panel. */
+@keyframes scan-beam {
+  0% { transform: translateY(-8%); opacity: 0; }
+  12% { opacity: 0.85; }
+  88% { opacity: 0.85; }
+  100% { transform: translateY(108%); opacity: 0; }
+}
+.scan-beam {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(110, 231, 255, 0.95), transparent);
+  box-shadow: 0 0 14px 2px rgba(110, 231, 255, 0.65);
+  animation: scan-beam 4.5s linear infinite;
+}
+
+/* ============================================================
+   LIGHT-SURFACE CINEMATIC LAYER — ink-tinted variants of the
+   orbit-ring / tech-grid devices above, for sections that keep the
+   warm cream "human/story" background (e.g. About) instead of
+   switching to the dark void bed. Same signature shapes, just
+   recolored so they read as a faint technical layer sitting on a
+   light surface — the frost-tinted originals assume a dark bed to
+   contrast against and all but disappear on cream.
+   ============================================================ */
+.tech-grid-ink {
+  background-image:
+    linear-gradient(rgba(44, 58, 52, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 58, 52, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(44, 58, 52, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 58, 52, 0.09) 1px, transparent 1px);
+  background-size: 28px 28px, 28px 28px, 112px 112px, 112px 112px;
+  -webkit-mask-image: radial-gradient(ellipse 65% 65% at 50% 45%, black 35%, transparent 82%);
+  mask-image: radial-gradient(ellipse 65% 65% at 50% 45%, black 35%, transparent 82%);
+}
+.orbit-ring--ink {
+  border-color: rgba(44, 58, 52, 0.1);
+}
+
+/* Light glassmorphism panel — a frosted-white pane for cards that sit
+   on top of a photo or the cream backdrop (e.g. the "Studio HQ Card"),
+   giving the same floating-glass depth as .glass-panel but tuned for
+   light surroundings instead of a dark bed. */
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px -28px rgba(15, 31, 58, 0.35), 0 1px 2px rgba(15, 31, 58, 0.06);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s ease;
+}
+.glass-panel-light:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 32px 70px -24px rgba(15, 31, 58, 0.4), 0 1px 2px rgba(15, 31, 58, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-orbit,
+  .animate-orbit-reverse,
+  .animate-orbit-pulse,
+  .animate-cinematic-zoom,
+  .scroll-cue-dot,
+  .particle-dot,
+  .light-sweep,
+  .energy-line-x,
+  .energy-line-y,
+  .scan-beam {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   LIVING WORLD SYSTEM — src/scroll/. The persistent fixed
+   background (<ScrollWorld>) + the color-morph boundaries that
+   drive it (<WorldSeam>), replacing hard section-to-section color
+   seams with one continuous bed the whole post-storytelling journey
+   scrolls through.
+   ============================================================ */
+
+/* The bed itself. `--world-color` is not read anywhere else — it
+   exists solely so GSAP has a single, simple runtime property to
+   tween between chapter colors (see WorldSeam.jsx). */
+.world-bg-fill {
+  background-color: var(--world-color);
+}
+
+/* Difference blend against currentColor-agnostic near-white: reads as
+   a light speck on the dark chapters and a dark speck on the cream
+   chapters, automatically, with no per-chapter color logic needed. */
+.world-dust {
+  background: rgba(248, 250, 252, 0.55);
+  mix-blend-mode: difference;
+  opacity: 0.5;
+}
+
+/* Lenis (src/scroll/lenis.js) drives the *real* scrollTop smoothly
+   itself; the browser's own smooth-scroll would fight that easing on
+   every anchor jump, so it's disabled the moment Lenis is running. */
+html.lenis {
+  scroll-behavior: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-dust {
+    display: none;
+  }
+}
+
+/* Portfolio chapter floating cards (DivisionPipeline) — GSAP owns
+   `transform` entirely (entrance, idle float, hover), this just gives
+   the browser a perf hint and a sane non-JS fallback transform. */
+.division-float-card {
+  will-change: transform, opacity;
+  text-decoration: none;
+}
